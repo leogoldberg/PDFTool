@@ -1,0 +1,13 @@
+Topic Idea: 
+A web app that allows users to draw a table and have it converted to latex code. The front end app will be written in react, the backend will be a Rust server which executes python scripts to generate the latex code.
+
+3 Programming languages: 
+Rust 
+JavaScript (React)
+Python (PyLaTex)
+
+Inter-language communication methods:
+Rest API: Javascript frontend -> Rust Backend
+Script Execution: Rust backend -> Python 
+
+Deployment Technology: Docker containers
