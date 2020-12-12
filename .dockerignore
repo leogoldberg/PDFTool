@@ -1,0 +1,4 @@
+*.git
+*.idea
+/pdf-tool-app/node_modules
+/pdf-tool-app/build
