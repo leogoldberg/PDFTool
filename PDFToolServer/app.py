@@ -209,3 +209,5 @@ def get_thumbnails(path):
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
+    if not os.path.exists(OUTPUT_FOLDER):
+        os.mkdir(OUTPUT_FOLDER)
