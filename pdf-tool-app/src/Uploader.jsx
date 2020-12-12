@@ -1,6 +1,7 @@
 import * as React from 'react';
 import './Uploader.css'
 import ProgressBar from 'react-bootstrap/ProgressBar'
+import Alert from 'react-bootstrap/Alert'
 import { Document, Page } from 'react-pdf';
 import axios from 'axios';
 
@@ -10,7 +11,7 @@ class Uploader extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            uploadedFiles: {}, isUploading: false, isDownloading: false, isDownloadReady: false, downloadFile: "",
+            uploadedFiles: {}, showSameName: false, showWrongExtension: false, isUploading: false, isDownloading: false, isDownloadReady: false, downloadFile: "",
             downloadFileURL: ""
         }
         this.fileInput = React.createRef();
@@ -25,6 +26,7 @@ class Uploader extends React.Component {
             return new Promise(resolve => setTimeout(() => resolve(x), ms));
         };
     }
+
 
     handleDeletePage(filename, page, index) {
         console.log("deleting " + page)
@@ -72,6 +74,7 @@ class Uploader extends React.Component {
 
     }
 
+
     handleMerge() {
         this.setState({ isDownloading: true })
         console.log("merging ", Object.keys(this.state.uploadedFiles))
@@ -103,52 +106,63 @@ class Uploader extends React.Component {
     }
 
     handleFileUpload(event) {
-
-        this.setState({ isUploading: true })
-        console.log(event.target.files[0])
-
-        // check file properties
-
+        const allowedTypes = ['pdf', 'png', 'jpeg', 'jpg']
         // get file 
         const file = event.target.files[0]
 
-        var formData = new FormData()
-        formData.append("file", file)
+        const pdfName = file.name.split('.')[0] + '.pdf'
 
-        // // send upload request to api
-        axios.post(`${url}/upload/${this.props.id}`, formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data'
-            }
-        }).then(res => {
-            const pdfName = file.name.split('.')[0] + '.pdf'
-            console.log("updating " + pdfName)
-            console.log(res.data.thumbnails)
-
-            // free download url object
-            if (this.state.downloadFileURL !== "") {
-                console.log("It's just been revoked " + this.state.downloadFileURL)
-                URL.revokeObjectURL(this.state.downloadFileURL)
-            }
-
-            this.setState(prevState => ({
-                uploadedFiles: {
-                    ...prevState.uploadedFiles,
-                    [pdfName]: res.data.thumbnails
-                },
-                isUploading: false,
-                isDownloadReady: false,
-                isDownloading: false,
-                downloadFile: "",
-                downloadFileURL: "",
-            }), () => {
-                console.log("state of " + pdfName)
-                console.log(this.state)
+        if (pdfName in this.state.uploadedFiles) {
+            this.setState({
+                showSameName: true,
+                sameName: pdfName.split('.')[0]
             })
-        })
-            .catch(err => {
-
+        } else if (allowedTypes.indexOf(file.name.split('.')[1]) < 0) {
+            this.setState({
+                showWrongExtension: true,
             })
+        }
+        else {
+
+            this.setState({ isUploading: true })
+
+            var formData = new FormData()
+            formData.append("file", file)
+
+            // // send upload request to api
+            axios.post(`${url}/upload/${this.props.id}`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            }).then(res => {
+                console.log("updating " + pdfName)
+                console.log(res.data.thumbnails)
+
+                // free download url object
+                if (this.state.downloadFileURL !== "") {
+                    console.log("It's just been revoked " + this.state.downloadFileURL)
+                    URL.revokeObjectURL(this.state.downloadFileURL)
+                }
+
+                this.setState(prevState => ({
+                    uploadedFiles: {
+                        ...prevState.uploadedFiles,
+                        [pdfName]: res.data.thumbnails
+                    },
+                    isUploading: false,
+                    isDownloadReady: false,
+                    isDownloading: false,
+                    downloadFile: "",
+                    downloadFileURL: "",
+                }), () => {
+                    console.log("state of " + pdfName)
+                    console.log(this.state)
+                })
+            })
+                .catch(err => {
+
+                })
+        }
         // reset file input value to allow multiple upload of same file
         event.target.value = null;
     }
@@ -173,6 +187,18 @@ class Uploader extends React.Component {
         return (
             // this.state.isDownloading ? this.downloader() : this.uploader()
             <div className="container h-100">
+                {
+                    this.state.showSameName ?
+                        <Alert key='same-name-error' variant='danger' onClose={() => this.setState({ showSameName: false })} dismissible>
+                            A file with name {this.state.sameName} has already been uploaded!
+                    </Alert> : ""
+                }
+                {
+                    this.state.showWrongExtension ?
+                        <Alert key='wrong-extension-error' variant='danger' onClose={() => this.setState({ showWrongExtension: false })} dismissible>
+                            Error: only .pdf, .jpeg, .jpg and .png extension types are allowed!
+                    </Alert> : ""
+                }
                 <div className='mb-5'>
                     <h1 className='mt-5'>Welcome to PDF Editor</h1>
                     <p className='lead'>
@@ -186,6 +212,8 @@ class Uploader extends React.Component {
                 <div className="row p-3 border border-info container mh-80 preview mb-3">
                     <div className="row">
                         {Object.keys(this.state.uploadedFiles).map((filename, index) => {
+                            console.log("filename", filename)
+                            console.log(this.state.uploadedFiles[filename])
                             return this.state.uploadedFiles[filename].map((thumbnail, thumbnailIndex) => {
                                 { console.log(thumbnail) }
                                 return (

@@ -28,6 +28,7 @@ JavaScript -> Python: making REST requests to Python server from JavaScript clie
 
 Steps to start project:
 - Make sure there are no existing containers named flask or react
+- docker-compose build
 - docker-compose up
 
 Features:
