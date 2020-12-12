@@ -1,9 +1,4 @@
-<<<<<<< HEAD
-PDFToolServer/output/*
-PDFTool/out
-PDFTool/target
-=======
-/PDFToolServer/output/*
+/PDFToolServer/
 /PDFTool/out
 /PDFTool/target
->>>>>>> 8007e96650b6a878a14eb056d629326d537cebcb
+
