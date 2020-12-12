@@ -1,15 +1,25 @@
+import base64
+import shutil
+# Boiler plate stuff to start the module
+import jpype
+import jpype.imports
+from jpype.types import * 
+
 from datetime import datetime
+import codecs
 from time import sleep
 import os
 from subprocess import Popen
-from flask import Flask, request, send_from_directory, render_template, session, flash, redirect, \
+from flask import Flask, request, make_response, send_from_directory, abort, send_file, session, flash, redirect, \
     url_for, jsonify
-from celery import Celery
+from celery import Celery, chain
 from flask_cors import CORS, cross_origin
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 CORS(app)
+
+
 
 # Celery Configuration
 app.config['CELERY_BROKER_URL'] = 'pyamqp://leo:admin123@localhost/pdfapi'
@@ -21,28 +31,60 @@ celery.conf.update(app.config)
 
 # File upload information
 UPLOAD_FOLDER = './uploads'
+THUMBNAIL_FOLDER = 'thumbnails'
+DOWNLOAD_FOLDER = 'download'
+DOWNLOAD_FILE = 'merge.pdf'
 OUTPUT_FOLDER = './output'
 ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg'}
 
+def init_jvm(jvmpath):
+    if jpype.isJVMStarted():
+        return
+    jpype.startJVM(classpath=[jvmpath])
 
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-@celery.task()
-def img_2_pdf(inputPath, outputDir, outPutFileName):
+def isPdf(filename):
+    return filename.rsplit('.', 1)[1].lower() == 'pdf'
+
+def img_2_pdf(inputPath, outputPath):
+    # alernative to jpype: popen
+    # Popen way:
+    # print(outputPath)
+    # proc = Popen(["java", "-jar", "PDFTool-jar-with-dependencies.jar",
+    #               "img2pdf", inputPath, outputPath])
+    # proc.wait()
+
+    # Launch the JVM 
+    init_jvm('jars/PDFTool-jar-with-dependencies.jar')
+    from com.company import ImageToPDF
     print("celery task started")
-    outputPath = os.path.join(outputDir, outPutFileName)
-    print(outputPath)
-    proc = Popen(["java", "-jar", "PDFTool-jar-with-dependencies.jar",
-                  "img2pdf", inputPath, outputPath])
-    proc.wait()
-    return
+
+    img2pdf = ImageToPDF(inputPath, outputPath)
+    img2pdf.convert()
+    return 
+
+def pdf_2_thumbnails(inputPath, outputPath):
+      # Launch the JVM 
+    init_jvm('jars/PDFTool-jar-with-dependencies.jar')
+    from com.company import PDFToThumbnails
+    print("celery task started")
+
+    pdf2thumbnails = PDFToThumbnails(inputPath, outputPath)
+    pdf2thumbnails.createThumbnails()
+    return 
 
 
-@app.route('/img2pdf', methods=['POST'])
-def img2pdf():
+@app.route('/upload/<id>', methods=['POST'])
+def upload(id):
+    # Launch the JVM 
+    init_jvm('jars/PDFTool-jar-with-dependencies.jar')
+    from com.company import PDFUtils
+
+    print("id ", id)
     # check if the post request has the file part
     print(request.files)
     if 'file' not in request.files:
@@ -55,27 +97,115 @@ def img2pdf():
         flash('No selected file')
         return redirect(request.url)
     if file and allowed_file(file.filename):
-        filename = str(datetime.now().time()) + "-" + \
-            secure_filename(file.filename)
-        file.save(os.path.join(UPLOAD_FOLDER, filename))
-        # create an output directory for this operation
-        outputDir = str(datetime.now().time()) + "-" + \
-            os.path.splitext(filename)[0]
+          # get output dir for this user session id
+        outputDir = os.path.join(OUTPUT_FOLDER, id)
+        if not os.path.exists(outputDir):
+            os.mkdir(outputDir)
+            os.mkdir(os.path.join(outputDir, THUMBNAIL_FOLDER))
 
-        outputDir = os.path.join(OUTPUT_FOLDER, outputDir)
-        os.mkdir(outputDir)
-        # get output file name
-        outputFileName = os.path.splitext(file.filename)[0]+'.pdf'
-        print("run celery task with " + outputFileName)
-        # start conversion task
-        task = img_2_pdf.apply_async(
-            args=[os.path.join(UPLOAD_FOLDER, filename), outputDir, outputFileName])
-        while not task.ready():
-            sleep(0.5)
-        print("completed celery task")
-        # return result file
-        return send_from_directory(outputDir, filename=outputFileName, as_attachment=True)
+        filename = file.filename
+        file.save(os.path.join(outputDir, filename))
 
+        outputFileName = filename
+        inputPath = os.path.join(
+            outputDir, filename)
+
+        thumbnailPath = os.path.join(OUTPUT_FOLDER, id, THUMBNAIL_FOLDER, os.path.splitext(file.filename)[0])
+        os.mkdir(thumbnailPath)
+        # check if uploaded file needs to be converted now
+        if not isPdf(filename):
+            convertedFlag = 'true'
+            # get output file name
+            outputFileName = os.path.splitext(file.filename)[0]+'.pdf'
+            print("run celery task with " + outputFileName)
+
+            outputPath = os.path.join(
+                outputDir, outputFileName)
+            # start conversion task
+            img_2_pdf(inputPath, outputPath)
+            # delete input file
+            os.remove(inputPath)
+            # convert output to thumbnails
+            pdf_2_thumbnails(outputPath, thumbnailPath)
+            thumbnails=get_thumbnails(thumbnailPath)
+        else: 
+            outputPath = os.path.join(
+                outputDir, outputFileName)
+            pdf_2_thumbnails(outputPath, thumbnailPath)
+            thumbnails=get_thumbnails(thumbnailPath)
+    
+        return jsonify(thumbnails = thumbnails)
+
+@app.route('/download/<id>', methods=['GET'])
+def download(id):
+     # Launch the JVM 
+    init_jvm('jars/PDFTool-jar-with-dependencies.jar')
+    from com.company import PDFMerge
+
+    inputPath = os.path.join(OUTPUT_FOLDER, id)
+    outputPath = os.path.join(inputPath, DOWNLOAD_FOLDER)
+    if os.path.exists(outputPath):
+        print("deleting " + os.path.join(outputPath, DOWNLOAD_FILE))
+        os.remove(os.path.join(outputPath, DOWNLOAD_FILE))
+    else:
+        os.mkdir(outputPath)
+
+    pdfMerger = PDFMerge(inputPath, outputPath, DOWNLOAD_FILE)
+    pdfMerger.mergeFiles()
+
+    try:
+        return send_from_directory(outputPath, filename=DOWNLOAD_FILE, as_attachment=True)
+    except FileNotFoundError:
+        abort(404)
+
+@app.route('/<id>', methods=['DELETE'])
+def delete(id):
+    sessionDir = os.path.join(OUTPUT_FOLDER, id)
+    if os.path.exists(sessionDir):
+        shutil.rmtree(sessionDir)
+
+    res = make_response(jsonify({}), 204)
+    return res
+
+# delete page from specified pdf
+@app.route('/<id>/<filename>/<page>', methods=['PUT'])
+def deletePage(id, filename, page):
+    inputPath = os.path.join(OUTPUT_FOLDER, id, filename)
+      # Launch the JVM 
+    init_jvm('jars/PDFTool-jar-with-dependencies.jar')
+    from com.company import PDFUtils
+    print("deleting " + " page " + page + " in " + filename)
+    PDFUtils.deletePage(inputPath, int(page)-1)
+
+ 
+
+    filename = os.path.splitext(filename)[0]
+    # check if file got deleted, if so, delete thumbnail folder
+    # to avoid name conflicts
+    if not os.path.exists(inputPath):
+        shutil.rmtree(os.path.join(OUTPUT_FOLDER, id, THUMBNAIL_FOLDER, filename))
+    # respond with success
+    res = make_response(jsonify({}), 204)
+    return res
+
+
+
+def get_thumbnails(path):
+    thumbnails = list()
+    directory = os.listdir(path)
+    # sort thumbnails in order of page number
+    for file in sorted(directory, key=lambda filename: int(os.path.splitext(filename)[0])):
+        data = dict()
+        base = os.path.basename(file)
+        print(base)
+        data["label"] = base
+        open_file = open(os.path.join(path, file),'rb')
+        image_read = open_file.read()
+        image_64_encode = base64.encodebytes(image_read)
+        data["data"] = image_64_encode.decode('ascii')
+        thumbnails.append(data)  
+
+    return thumbnails
 
 if __name__ == '__main__':
     app.run(debug=True)

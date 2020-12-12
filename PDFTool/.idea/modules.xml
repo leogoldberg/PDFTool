@@ -3,7 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/PDFTool.iml" filepath="$PROJECT_DIR$/PDFTool.iml" />
-      <module fileurl="file://$USER_HOME$/IdeaProjects/untitled/untitled.iml" filepath="$USER_HOME$/IdeaProjects/untitled/untitled.iml" />
+      <module fileurl="file://$USER_HOME$/IdeaProjects/untitled/pdfbox.iml" filepath="$USER_HOME$/IdeaProjects/untitled/pdfbox.iml" />
     </modules>
   </component>
 </project>

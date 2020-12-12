@@ -6,10 +6,13 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <module name="untitled" />
+        <module name="PDFTool" />
+        <module name="pdfbox" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
+      <module name="pdfbox" target="15" />
+      <module name="PDFTool" target="8" />
       <module name="untitled" target="15" />
     </bytecodeTargetLevel>
   </component>

@@ -11,3 +11,13 @@ Rest API: Javascript frontend -> Rust Backend
 Script Execution: Rust backend -> Python 
 
 Deployment Technology: Docker containers
+
+New topic idea:
+
+A web app for manipulating pdf files: includes the ability to merge png, jpg, pdf pages at once. Also to rearrange pages in pdf Docker
+
+Languages:
+Python (flask) backend
+React js front end
+Java api for pdfs
+

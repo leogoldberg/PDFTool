@@ -15,22 +15,16 @@ import java.io.InputStream;
 /**
  * This code is adapted from this example: https://stackoverflow.com/questions/22358478/java-create-pdf-pages-from-images-using-pdfbox-library
  * **/
-public class ImageToPDF implements Runnable {
-    private Thread t;
-    private String threadName;
+public class ImageToPDF {
     private String imagePath;
     private String outputFile;
 
-    ImageToPDF( String name, String imagePath, String outputFile) {
-        threadName = name;
+    public ImageToPDF(String imagePath, String outputFile) {
         this.imagePath = imagePath;
         this.outputFile = outputFile;
-
-        System.out.println("Creating " +  threadName );
-        t = new Thread (this, threadName);
     }
 
-    public void run() {
+    public void convert() {
         try (PDDocument document = new PDDocument())
         {
             InputStream in = new FileInputStream(imagePath);
@@ -48,12 +42,11 @@ public class ImageToPDF implements Runnable {
                 in.close();
             }
             document.save(outputFile);
+            return;
         }
         catch (IOException e) {
             e.printStackTrace();
         }
-    }
-    public void start () {
-            t.start ();
+        return;
     }
 }

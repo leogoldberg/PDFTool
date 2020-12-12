@@ -6,11 +6,11 @@ public class PDFTool {
     public static void main(String[] args) throws IOException
     {
         if(args[0].equals("img2pdf")) {
-            ImageToPDF t1 = new ImageToPDF("Image Conversion Thread", args[1], args[2]);
+            ImageToPDFConcurrent t1 = new ImageToPDFConcurrent("Image Conversion Thread", args[1], args[2]);
             t1.start();
         } else if(args[0].equals("pdf2thumbnails"))
         {
-            PDFToThumbnail t1 = new PDFToThumbnail("PDF Thumbnails Thread", args[1], args[2]);
+            PDFToThumbnailsConcurrent t1 = new PDFToThumbnailsConcurrent("PDF Thumbnails Thread", args[1], args[2]);
             t1.start();
         } else {
             usage();
