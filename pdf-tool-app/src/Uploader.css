@@ -1,0 +1,23 @@
+.img {
+    width: 200px
+}
+
+.preview {
+    display: flex
+}
+
+.close {
+    color: red !important;
+    opacity: 1;
+    position:absolute;
+    top: 100;
+    right: 0;
+}
+
+.card {
+    min-width: 200 px !important;
+}
+
+.thumbnail {
+    min-width: 200px;
+}
