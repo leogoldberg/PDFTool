@@ -9,7 +9,7 @@ JavaScript (React): Web Application
 Java: Utility library for modifying pdfs
 
 Communication methods:
-Python -> Java: calling Java library methods from Python using Jpype, which I believe use the JNI for communcating between Python and Java
+Python -> Java: calling Java library methods from Python using Jpype, which I believe uses the JNI for communcating between Python and Java
 JavaScript -> Python: making REST requests to Python server from JavaScript client code
 
 Steps to start project:
